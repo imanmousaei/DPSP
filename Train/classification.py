@@ -3,13 +3,11 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch.nn as nn
 from torch import optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 import torch
 import os
-from sklearn.decomposition import PCA
-from sklearn.model_selection import KFold
+import numpy as np
 
-from models.mlp import MLP
 from train.utils import EarlyStopping
 
 
@@ -25,13 +23,14 @@ class Classification:
         self.device = self._acquire_device()
         self.model = self.model.to(self.device)
 
-        # get optimizer and criterion
+        # define optimizer and criterion
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         self.criterion = nn.CrossEntropyLoss()
 
         self.checkpoint_path = 'models/checkpoints'
         if early_stopping:
             self.early_stopping = EarlyStopping(patience=patience, verbose=True)
+
 
     def _acquire_device(self):
         gpu_device_ids = '0'
@@ -49,7 +48,8 @@ class Classification:
     def train(self, epochs, batch_size, train_data, validation_data):
         print('start training')
         
-        train_dataset = Dataset()
+        print(train_data[0].shape, train_data[1].shape)
+        train_dataset = TensorDataset(train_data[0], train_data[1])
         
         train_loader = DataLoader(
             train_dataset,
@@ -60,20 +60,18 @@ class Classification:
         self.model.train()
         for epoch in range(epochs):
             train_losses = []
-            for i, item in tqdm(enumerate(train_loader)):
+            for i, (batch_X, batch_y) in tqdm(enumerate(train_loader)):
                 self.optimizer.zero_grad()
+                
+                print('######', batch_X.shape)
+                print(batch_y.shape)
 
-                # move tensors to device
-                for key, value in item.items():
-                    item[key] = value.to(self.device)
-
-                labels = item['labels'].flatten()
-                probabilities = self.model(item)
+                probabilities = self.model(batch_X)
                 # get class number of most probability
                 # predictions = torch.argmax(probabilities, dim=1)
                 # print('labels \n', labels, '\n', probabilities)
 
-                loss = self.criterion(probabilities, labels)
+                loss = self.criterion(probabilities, batch_y)
                 train_losses.append(loss.item())
 
                 loss.backward()
@@ -82,7 +80,7 @@ class Classification:
                 self.optimizer.step()
 
             # todo: validation here
-            validation_loss = self.validate()
+            validation_loss = self.validate(validation_data, batch_size)
             print(f'validation loss: {validation_loss}, train_loss: {loss}')
             self.early_stopping(self.model, validation_loss, self.checkpoint_path, epoch)
 
@@ -92,16 +90,23 @@ class Classification:
         plt.plot(train_losses)
         plt.savefig('train_losses.png')
 
-    def validate(self):
+    def validate(self, validation_data, batch_size):
         print('starting validation')
 
+        val_dataset = TensorDataset(validation_data[0], validation_data[1])
+        
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+        )
         
 
         validation_losses = []
         self.model.eval()
 
         with torch.no_grad():
-            for i, item in enumerate(data_loader):
+            for i, item in enumerate(val_loader):
 
                 for key, value in item.items():
                     item[key] = value.to(self.device)

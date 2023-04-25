@@ -4,18 +4,13 @@ We introduce DPSP, a Deep learning framework for Polypharmacy Side effects Predi
 The setup for our problem is outlined in `DPSP.py`. It uses a simple neural network with 65 events. Run the code as following:
 
 ```
-$ python3 DPSP.py
+    make run
 ```
 ## Requirement
-- numpy (==1.18.1)
-- Keras (==2.2.4)
-- pandas (==1.0.1)
-- scikit-learn (==0.21.2)
-- stanfordnlp (==0.2.0)  
 
 Use the following command to install all dependencies. 
 ```
-    pip install requirement.txt
+    make install
 ```
 
 Notice: Too high version of sklearn will probably not work. We use 0.21.2 for sklearn.

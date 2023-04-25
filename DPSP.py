@@ -5,19 +5,15 @@
 
 
 from sklearn.preprocessing import label_binarize
-from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import precision_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import auc
 
 
-from pandas import DataFrame
 import pandas as pd
 import numpy as np
-import sqlite3
 from numpy.random import seed
 seed(1)
 
@@ -47,22 +43,27 @@ def cross_validation(feature_matrix, label_matrix, event_num, seed, CV):
 
         for i in range(len(feature_matrix)):
             x_train = feature_matrix[i][train_index]
+            x_train = torch.Tensor(x_train)
             x_test = feature_matrix[i][test_index]
-            y_train = label_matrix[train_index]
+            x_test = torch.Tensor(x_test)
             
             # one-hot encoding
+            y_train = label_matrix[train_index]
             y_train_one_hot = np.array(y_train)
             y_train_one_hot = (np.arange(y_train_one_hot.max() + 1)
                                == y_train[:, None]).astype(dtype='float32')
-            y_test = label_matrix[test_index]
+            y_train_one_hot = torch.Tensor(y_train_one_hot)
             
             # one-hot encoding
+            y_test = label_matrix[test_index]
             y_test_one_hot = np.array(y_test)
             y_test_one_hot = (np.arange(y_test_one_hot.max() + 1)
                               == y_test[:, None]).astype(dtype='float32')
+            y_test_one_hot = torch.Tensor(y_test_one_hot)
+
 
             model = MLP(input_size=new_feature.shape[1], output_size=event_num, droprate=droprate)
-            classification = Classification(model)
+            classification = Classification(model, learning_rate=0.01, use_gpu=False)
             classification.train(batch_size=128, epochs=100, train_data=(x_train, y_train_one_hot), validation_data=(x_test, y_test_one_hot))
             
             pred += model(x_test)
@@ -116,94 +117,27 @@ def evaluate(pred_type, pred_score, y_test, event_num):
     return [result_all, positive_negative, result_eve]
 
 
-def self_metric_calculate(y_true, pred_type):
-    y_true = y_true.ravel()
-    y_pred = pred_type.ravel()
-    if y_true.ndim == 1:
-        y_true = y_true.reshape((-1, 1))
-    if y_pred.ndim == 1:
-        y_pred = y_pred.reshape((-1, 1))
-    y_true_c = y_true.take([0], axis=1).ravel()
-    y_pred_c = y_pred.take([0], axis=1).ravel()
-    TP = 0
-    TN = 0
-    FN = 0
-    FP = 0
-    for i in range(len(y_true_c)):
-        if (y_true_c[i] == 1) and (y_pred_c[i] == 1):
-            TP += 1
-        if (y_true_c[i] == 1) and (y_pred_c[i] == 0):
-            FN += 1
-        if (y_true_c[i] == 0) and (y_pred_c[i] == 1):
-            FP += 1
-        if (y_true_c[i] == 0) and (y_pred_c[i] == 0):
-            TN += 1
-    print("TP=", TP, "FN=", FN, "FP=", FP, "TN=", TN)
-    # return (TP / (TP + FP), TP / (TP + FN))
-    return (TP, TN, FP, FN)
-
-
-def multiclass_precision_recall_curve(y_true, y_score):
-    y_true = y_true.ravel()
-    y_score = y_score.ravel()
-    if y_true.ndim == 1:
-        y_true = y_true.reshape((-1, 1))
-    if y_score.ndim == 1:
-        y_score = y_score.reshape((-1, 1))
-    y_true_c = y_true.take([0], axis=1).ravel()
-    y_score_c = y_score.take([0], axis=1).ravel()
-    precision, recall, pr_thresholds = precision_recall_curve(
-        y_true_c, y_score_c)
-    return (precision, recall, pr_thresholds)
-
-def roc_aupr_score(y_true, y_score, average="macro"):
-    def _binary_roc_aupr_score(y_true, y_score):
-        precision, recall, pr_thresholds = precision_recall_curve(
-            y_true, y_score)
-        return auc(recall, precision, reorder=True)
-
-    def _average_binary_score(binary_metric, y_true, y_score, average):  # y_true= y_one_hot
-        if average == "binary":
-            return binary_metric(y_true, y_score)
-        if average == "micro":
-            y_true = y_true.ravel()
-            y_score = y_score.ravel()
-        if y_true.ndim == 1:
-            y_true = y_true.reshape((-1, 1))
-        if y_score.ndim == 1:
-            y_score = y_score.reshape((-1, 1))
-        n_classes = y_score.shape[1]
-        score = np.zeros((n_classes,))
-        for c in range(n_classes):
-            y_true_c = y_true.take([c], axis=1).ravel()
-            y_score_c = y_score.take([c], axis=1).ravel()
-            score[c] = binary_metric(y_true_c, y_score_c)
-        return np.average(score)
-
-    return _average_binary_score(_binary_roc_aupr_score, y_true, y_score, average)
-
-
 if __name__ == '__main__':
 
     # Dataset1 (DS1):
-    event_num = 65
-    droprate = 0.3
-    vector_size = 572
-    df_drug = pd.read_pickle('df.pkl')
-    conn = sqlite3.connect("event.db")
-    feature_list = df_drug[["side", "target", "enzyme", "pathway", "smile"]]
-    extraction = pd.read_sql('select * from extraction;', conn)
-    mechanism = extraction['mechanism']
-    action = extraction['action']
-    drugA = extraction['drugA']
-    drugB = extraction['drugB']
+    # event_num = 65
+    # droprate = 0.3
+    # vector_size = 572
+    # df_drug = pd.read_pickle('DS1/df.pkl')
+    # conn = sqlite3.connect("DS1/event.db")
+    # feature_list = df_drug[["side", "target", "enzyme", "pathway", "smile"]]
+    # extraction = pd.read_sql('select * from extraction;', conn)
+    # mechanism = extraction['mechanism']
+    # action = extraction['action']
+    # drugA = extraction['drugA']
+    # drugB = extraction['drugB']
 
     # Dataset2 (DS2):
     event_num = 100
     droprate = 0.3
     vector_size = 1258
-    df_drug = pd.read_csv('drug_information_1258.csv')
-    df_event = pd.read_csv('drug_interaction.csv')
+    df_drug = pd.read_csv('DS2/drug_information_1258.csv')
+    df_event = pd.read_csv('DS2/drug_interaction.csv')
     feature_list = df_drug[["target", "enzyme", "smile"]]
     mechanism = df_event['mechanism']
     action = df_event['action']
@@ -212,8 +146,9 @@ if __name__ == '__main__':
 
     seed = 0
     CV = 5
-    new_feature, new_label, event_num = prepare(
+    new_feature, new_label = prepare(
         df_drug, feature_list, vector_size, mechanism, action, drugA, drugB)
 
+    print(event_num)
     all_result, positive_negative, each_result = cross_validation(
         new_feature, new_label, event_num, seed, CV)
