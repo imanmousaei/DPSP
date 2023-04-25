@@ -1,5 +1,5 @@
-run:
-	python3 DPSP.py
+train:
+	python3 train.py
 
 install:
 	pip3 install -r requirements.txt

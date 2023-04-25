@@ -14,26 +14,25 @@ class MLP(nn.Module):
 
         self.seq = nn.Sequential(
             nn.Linear(input_size, 512),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.BatchNorm1d(512),
-            nn.Dropout(p=droprate),
+            nn.Dropout(p=droprate, inplace=True),
 
             nn.Linear(512, 256),
             nn.Sigmoid(),
             nn.BatchNorm1d(256),
-            nn.Dropout(p=droprate),
+            nn.Dropout(p=droprate, inplace=True),
 
             nn.Linear(256, 128),
             nn.Sigmoid(),
             nn.BatchNorm1d(128),
-            nn.Dropout(p=droprate),
+            nn.Dropout(p=droprate, inplace=True),
 
             nn.Linear(128, output_size),
             nn.Softmax(dim=1),
         )
 
     def forward(self, x):
-        print('forward')
         x = self.seq(x)
 
         return x
