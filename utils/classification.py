@@ -79,6 +79,9 @@ class Classification:
             validation_loss = self.validate(validation_data, batch_size)
             print(f'validation loss: {validation_loss}, train_loss: {loss}')
             self.early_stopping(self.model, validation_loss, self.checkpoint_path, epoch)
+            if self.early_stopping.trigger_early_stop:
+                print("Early stopping")
+                break
 
         # best_model_path = os.path.join(checkpoint_path, 'checkpoint.pth')
         # model.load_state_dict(torch.load(best_model_path))
